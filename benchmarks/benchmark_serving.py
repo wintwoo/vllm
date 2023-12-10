@@ -17,12 +17,14 @@ On the client side, run:
 """
 import argparse
 import asyncio
+import os
 import json
 import random
 import time
 from typing import AsyncGenerator, List, Tuple
 
 import aiohttp
+import json
 import numpy as np
 from transformers import PreTrainedTokenizerBase
 from vllm.transformers_utils.tokenizer import get_tokenizer
@@ -35,6 +37,7 @@ def sample_requests(
     dataset_path: str,
     num_requests: int,
     tokenizer: PreTrainedTokenizerBase,
+    fixed_output_length: bool,
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
     with open(dataset_path) as f:
@@ -64,14 +67,23 @@ def sample_requests(
     filtered_dataset: List[Tuple[str, int, int]] = []
     for prompt, prompt_token_ids, output_len in tokenized_dataset:
         prompt_len = len(prompt_token_ids)
-        if prompt_len < 4 or output_len < 4:
-            # Prune too short sequences.
-            # This is because TGI causes errors when the input or output length
-            # is too short.
-            continue
-        if prompt_len > 1024 or prompt_len + output_len > 2048:
-            # Prune too long sequences.
-            continue
+
+        if fixed_output_length:
+            output_len = 256 # hardcoded to 256
+            if prompt_len < 1024:
+                continue
+            if prompt_len + output_len > 2048:
+                continue
+        else:
+            if prompt_len < 4 or output_len < 4:
+                # Prune too short sequences.
+                # This is because TGI causes errors when the input or output length
+                # is too short.
+                continue
+            if prompt_len > 1024 or prompt_len + output_len > 2048:
+                # Prune too long sequences.
+                continue
+
         filtered_dataset.append((prompt, prompt_len, output_len))
 
     # Sample the requests.
@@ -172,36 +184,42 @@ async def benchmark(
 
 
 def main(args: argparse.Namespace):
-    print(args)
+    # print(args)
     random.seed(args.seed)
     np.random.seed(args.seed)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     api_url = f"http://{args.host}:{args.port}/generate"
     tokenizer = get_tokenizer(args.tokenizer, trust_remote_code=args.trust_remote_code)
-    input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
+    input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer, args.fixed_output_length)
 
     benchmark_start_time = time.perf_counter()
     asyncio.run(benchmark(args.backend, api_url, input_requests, args.best_of,
                           args.use_beam_search, args.request_rate))
     benchmark_end_time = time.perf_counter()
     benchmark_time = benchmark_end_time - benchmark_start_time
-    print(f"Total time: {benchmark_time:.2f} s")
-    print(f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s")
-
-    # Compute the latency statistics.
     avg_latency = np.mean([latency for _, _, latency in REQUEST_LATENCY])
-    print(f"Average latency: {avg_latency:.2f} s")
     avg_per_token_latency = np.mean([
         latency / (prompt_len + output_len)
         for prompt_len, output_len, latency in REQUEST_LATENCY
     ])
-    print(f"Average latency per token: {avg_per_token_latency:.2f} s")
     avg_per_output_token_latency = np.mean([
         latency / output_len
         for _, output_len, latency in REQUEST_LATENCY
     ])
-    print("Average latency per output token: "
-          f"{avg_per_output_token_latency:.2f} s")
+    benchmark_result_dict = {
+        "args": args.__dict__,
+        "results": {
+            "total_time": float(f"{benchmark_time:.2f}"),
+            "throughput": float(f"{args.num_prompts / benchmark_time:.2f}"),
+            "average_latency": float(f"{avg_latency:.2f}"),
+            "avg_per_token_latency": avg_per_token_latency,
+            "avg_per_output_token_latency": avg_per_output_token_latency,
+        }
+    }
+    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_{args.tp_size}_bench.txt")
+    with open(output_file, "w") as f:
+        json.dump(benchmark_result_dict, f)
 
 
 if __name__ == "__main__":
@@ -229,5 +247,9 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument('--trust-remote-code', action='store_true',
                         help='trust remote code from huggingface')
+    parser.add_argument('--fixed_output_length', action="store_true", help="sets output length to 256 if true")
+    parser.add_argument('--output_dir', type=str, help='directory to write results')
+    parser.add_argument('--tpu_size', type=int, help='tensor parallel size, for documentation only')
+    parser.add_argument('--gpu_type', type=str, help='gpu type, for documentation only')
     args = parser.parse_args()
     main(args)
