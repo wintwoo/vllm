@@ -217,8 +217,24 @@ def main(args: argparse.Namespace):
         raise ValueError(f"Unknown backend: {args.backend}")
     total_num_tokens = sum(prompt_len + output_len
                            for _, prompt_len, output_len in requests)
-    print(f"Throughput: {len(requests) / elapsed_time:.2f} requests/s, "
-          f"{total_num_tokens / elapsed_time:.2f} tokens/s")
+    throughput = len(requests) / elapsed_time
+    tokens_sec = total_num_tokens / elapsed_time
+    print(f"Throughput: {throughput:.2f} requests/s, "
+          f"{tokens_sec:.2f} tokens/s")
+
+    benchmark_result_dict = {
+        "args": args.__dict__,
+        "results": {
+            "elapsed_time": elapsed_time,
+            "throughput": float(f"{throughput:.2f}"),
+            "tokens_sec": float(f"{tokens_sec:.2f}"),
+            "total_num_tokens": total_num_tokens,
+            "num_requests": len(requests),
+        }
+    }
+    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_r_{args.request_rate}_tp_{args.tp_size}_throughput.txt")
+    with open(output_file, "w") as f:
+        json.dump(benchmark_result_dict, f)
 
 
 if __name__ == "__main__":
@@ -279,6 +295,9 @@ if __name__ == "__main__":
         'The "auto" option will use FP16 precision '
         'for FP32 and FP16 models, and BF16 precision '
         'for BF16 models.')
+    parser.add_argument('--output_dir', type=str, help='directory to write results')
+    parser.add_argument('--tp_size', type=int, help='tensor parallel size, for documentation only')
+    parser.add_argument('--gpu_type', type=str, help='gpu type, for documentation only')
     args = parser.parse_args()
     if args.tokenizer is None:
         args.tokenizer = args.model
