@@ -217,7 +217,7 @@ def main(args: argparse.Namespace):
             "avg_per_output_token_latency": avg_per_output_token_latency,
         }
     }
-    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_{args.tp_size}_bench.txt")
+    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_r{args.request_rate}_tp{args.tp_size}bench.txt")
     with open(output_file, "w") as f:
         json.dump(benchmark_result_dict, f)
 
@@ -249,7 +249,7 @@ if __name__ == "__main__":
                         help='trust remote code from huggingface')
     parser.add_argument('--fixed_output_length', action="store_true", help="sets output length to 256 if true")
     parser.add_argument('--output_dir', type=str, help='directory to write results')
-    parser.add_argument('--tpu_size', type=int, help='tensor parallel size, for documentation only')
+    parser.add_argument('--tp_size', type=int, help='tensor parallel size, for documentation only')
     parser.add_argument('--gpu_type', type=str, help='gpu type, for documentation only')
     args = parser.parse_args()
     main(args)
