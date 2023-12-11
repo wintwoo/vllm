@@ -184,7 +184,7 @@ async def benchmark(
 
 
 def main(args: argparse.Namespace):
-    # print(args)
+    print(args)
     random.seed(args.seed)
     np.random.seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
