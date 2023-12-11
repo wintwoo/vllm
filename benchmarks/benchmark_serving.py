@@ -217,7 +217,7 @@ def main(args: argparse.Namespace):
             "avg_per_output_token_latency": avg_per_output_token_latency,
         }
     }
-    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_r{args.request_rate}_tp{args.tp_size}bench.txt")
+    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_r_{args.request_rate}_tp_{args.tp_size}_bench.txt")
     with open(output_file, "w") as f:
         json.dump(benchmark_result_dict, f)
 
