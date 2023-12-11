@@ -35,9 +35,10 @@ while IFS= read -r line; do
     for i in "${request_rates[@]}"; do
         python3 benchmarks/benchmark_serving.py \
             --backend vllm \
-            --tokenizer $LLAMA2_7B_DIR \
+            --tokenizer $HOME/llama2_tokenizer \
             --dataset $HOME/ShareGPT_V3_unfiltered_cleaned_split.json \
-            --output_dir $HOME/results
+            --output_dir $HOME/results \
+            --num_prompts 1000 \
             --request-rate $i
     done
     # kill vllm server
