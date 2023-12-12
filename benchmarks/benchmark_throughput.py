@@ -232,7 +232,7 @@ def main(args: argparse.Namespace):
             "num_requests": len(requests),
         }
     }
-    output_file = os.path.join(args.output_dir, f"{args.gpu_type}_r_{args.request_rate}_tp_{args.tp_size}_throughput.txt")
+    output_file = os.path.join(args.output_dir, f"{args.model}_{args.gpu_type}_r_{args.request_rate}_tp_{args.tp_size}_throughput.txt")
     with open(output_file, "w") as f:
         json.dump(benchmark_result_dict, f)
 
@@ -298,6 +298,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str, help='directory to write results')
     parser.add_argument('--tp_size', type=int, help='tensor parallel size, for documentation only')
     parser.add_argument('--gpu_type', type=str, help='gpu type, for documentation only')
+    parser.add_argument('--model', type=str, help='model identifier, for documentation only')
     args = parser.parse_args()
     if args.tokenizer is None:
         args.tokenizer = args.model
