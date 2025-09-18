@@ -537,12 +537,23 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ENV VLLM_USAGE_SOURCE production-docker-image
 
-# define sagemaker first, so it is not default from `docker build`
+# openai api server on sagemaker
 FROM vllm-openai-base AS vllm-sagemaker
 
 COPY examples/online_serving/sagemaker-entrypoint.sh .
 RUN chmod +x sagemaker-entrypoint.sh
 ENTRYPOINT ["./sagemaker-entrypoint.sh"]
+
+# openai api server on vertex
+FROM vllm-openai-base AS vllm-vertex
+
+# Install Google Cloud SDK
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update -y && apt-get install google-cloud-cli -y
+
+COPY examples/online_serving/vertex-entrypoint.sh .
+RUN chmod +x vertex-entrypoint.sh
 
 FROM vllm-openai-base AS vllm-openai
 
