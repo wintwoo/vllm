@@ -5,7 +5,7 @@ PREFIX="VERTEX_VLLM_"
 ARG_PREFIX="--"
 
 # Initialize an array for storing the arguments
-ARGS = ()
+ARGS=()
 
 # Loop through all environment variables
 while IFS='=' read -r key value; do
